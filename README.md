@@ -216,39 +216,103 @@ X-Tunnel-Skip-AntiPhishing-Page: true
 
 This is not the BookStack login; it is an additional Dev Tunnel warning. The public tunnel must remain active, and the machine and containers must be running.
 
-## 5. BookStack API user and token
+## 5. Create a read-only BookStack API user, role, and token
 
-Create a dedicated BookStack user (for example `foundry-reader`) with permission to view the test book and **Access System API**. Create an API token from that user's profile. The API authentication format is:
+For Microsoft Foundry, use a **dedicated BookStack account** with a custom read-only role. The account needs **both** permission to call the API and permission to view the books/pages it will retrieve. A valid token alone does not grant access to content.
+
+> **Viewer vs Public:** A *Viewer* role gives a signed-in account read access. The *Public* role controls access for visitors who are **not signed in**. You do **not** need to make books public for an authenticated Foundry API user. Keep the test book private unless anonymous viewing is an intentional requirement.
+
+### Step 5.1 — Sign in as an administrator
+
+1. Open BookStack at `http://localhost:6875` (or the active public Dev Tunnel URL).
+2. Sign in with a BookStack administrator account.
+3. Open **Settings → Roles**. Depending on the BookStack version/theme, the Settings menu or the exact labels may differ slightly.
+
+### Step 5.2 — Create a custom read-only role
+
+1. In **Settings → Roles**, select **Create New Role** (or the equivalent add-role action).
+2. Set the role name to `Foundry API Reader` and optionally describe it as *Read-only documentation access for Microsoft Foundry*.
+3. Under **System Permissions**, enable **Access System API**. This permission is essential for calls to `/api/...`.
+4. Under the content permissions, enable **View** for the content types the agent must read (in particular **Books**, **Chapters**, and **Pages**; include **Shelves** if your documentation uses them). Leave **Create**, **Update**, **Delete**, and administrative permissions disabled.
+5. Save the role.
+
+**Important:** BookStack supports role/content-specific restrictions. If the target book, chapter, or page has customized permissions, open its **Permissions** controls and grant the `Foundry API Reader` role **View** on that content as appropriate. A role's general View permission may not override a restrictive permission on a specific item. Test using the dedicated user, not the administrator.
+
+### Step 5.3 — Create the API user and assign the role
+
+1. Go to **Settings → Users** and choose **Create New User**.
+2. Enter a descriptive name such as `Foundry Reader`, a dedicated email/username for the account, and a strong password as required by your BookStack configuration.
+3. In the user's **Roles** section, select **Foundry API Reader**. Remove any unnecessary elevated roles; do not assign **Admin** or **Editor**.
+4. Save the user.
+5. Verify that the user has the custom role and can view the intended test book. If the user cannot see it, revisit the role's View permissions and the book's content-specific permissions.
+
+**About the Public role:** Do not assign or broaden the **Public** role merely to make the API work. If you intentionally want anonymous visitors to view a book, configure the **Public** role's View permissions and that book's permissions separately. That is a distinct security decision and is not required for the token-based integration.
+
+### Step 5.4 — Enable API access and create a token
+
+1. Confirm that **Access System API** is enabled on the `Foundry API Reader` role. This is the API permission that the dedicated user inherits.
+2. Sign in **as the dedicated API user**, rather than as the administrator, so the token belongs to the least-privileged identity.
+3. Open the user's **profile** (usually from the account menu in the top-right corner).
+4. Open **API Tokens** and select **Create Token**.
+5. Give the token a recognizable name, for example `foundry-bookstack-reader`, and choose an expiration date if the interface offers one.
+6. Save/create the token. Copy the two separate values shown by BookStack:
+   - **Token ID** — the identifier of the API token.
+   - **Token Secret** — the secret used to authenticate requests. Store it securely when it is displayed; it may not be shown again.
+7. Keep both values in a secret store or the Foundry API-key connection, **not** in this README or source control.
+
+The required BookStack authentication header combines these values in **exactly** this format:
 
 ```http
-Authorization: Token TOKEN_ID:TOKEN_SECRET
+Authorization: Token YOUR_TOKEN_ID:YOUR_TOKEN_SECRET
 ```
 
-**The space after `Token` is mandatory.** The POC initially returned HTTP 401 when that space was missing, then HTTP 403 until the user/role had the appropriate BookStack API permissions.
+There must be **one space after `Token`**, and a colon between the ID and secret. Do not use `Bearer` or the user's password. In the Foundry connection, the header name is `Authorization` and the secret value is the **entire** `Token ID:SECRET` string prefixed by `Token `.
 
-### PowerShell test: localhost
+### Step 5.5 — Verify read-only access with PowerShell
 
-Replace placeholders with your **new, private** credentials:
+Run these tests from your Windows PowerShell terminal. The example prompts for the credentials instead of embedding real values in a script:
 
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:6875/api/books" -Method Get -Headers @{"Authorization"="Token YOUR_TOKEN_ID:YOUR_TOKEN_SECRET"; "Accept"="application/json"}
+$tokenId = Read-Host "BookStack Token ID"
+$tokenSecret = Read-Host "BookStack Token Secret"
+$headers = @{
+    "Authorization" = "Token ${tokenId}:${tokenSecret}"
+    "Accept" = "application/json"
+}
+
+# Local Docker-hosted BookStack
+Invoke-RestMethod -Uri "http://localhost:6875/api/books" -Method Get -Headers $headers
+
+# Search for a term in your test book
+Invoke-RestMethod -Uri "http://localhost:6875/api/search?query=Pip" -Method Get -Headers $headers
+
+# Retrieve the full test page (page ID 6 in this POC; IDs vary)
+Invoke-RestMethod -Uri "http://localhost:6875/api/pages/6" -Method Get -Headers $headers
 ```
 
-### PowerShell test: public tunnel
+For the **public VS Code Dev Tunnel**, add the separate tunnel anti-phishing header:
 
 ```powershell
-Invoke-RestMethod -Uri "https://kv4kfw9f-6875.use.devtunnels.ms/api/books" -Method Get -Headers @{"Authorization"="Token YOUR_TOKEN_ID:YOUR_TOKEN_SECRET"; "X-Tunnel-Skip-AntiPhishing-Page"="true"; "Accept"="application/json"}
+$tunnelHeaders = $headers.Clone()
+$tunnelHeaders["X-Tunnel-Skip-AntiPhishing-Page"] = "true"
+
+Invoke-RestMethod -Uri "https://kv4kfw9f-6875.use.devtunnels.ms/api/books" -Method Get -Headers $tunnelHeaders
+Invoke-RestMethod -Uri "https://kv4kfw9f-6875.use.devtunnels.ms/api/search?query=Pip" -Method Get -Headers $tunnelHeaders
 ```
 
-The POC successfully retrieved books from both addresses. For book/page details:
+The Dev Tunnel address is specific to this POC; replace it if VS Code assigns a new URL. The header `X-Tunnel-Skip-AntiPhishing-Page` is **not** a BookStack permission or credential; it bypasses the tunnel's browser warning for API requests.
 
-```powershell
-# Assuming $headers contains your valid Authorization header:
-Invoke-RestMethod -Uri "http://localhost:6875/api/books/4" -Headers $headers
-Invoke-RestMethod -Uri "http://localhost:6875/api/pages/6" -Headers $headers
-```
+### Step 5.6 — Troubleshoot permissions and credentials
 
-**Credential hygiene:** A token was pasted into the earlier troubleshooting conversation. Revoke that token and create a replacement; never paste live tokens into README files, screenshots, chat, or source control. PowerShell command history may retain pasted credentials.
+| Result | What to check |
+|---|---|
+| **HTTP 200**, expected books/pages returned | API token, API permission, and content View permissions are working. |
+| **HTTP 401 Unauthorized** | Check `Authorization: Token ID:SECRET`, including the space after `Token`, the colon, token validity, and expiration. |
+| **HTTP 403 Forbidden** | Confirm **Access System API** is enabled for the API user's role and that the role can **View** the requested content. Check content-specific permissions. |
+| **HTTP 200**, but the expected book/page is missing | The API identity may not have View access to that resource; compare with the dedicated user's BookStack UI access. |
+| HTML warning page or tunnel error | Check the public tunnel is active and `X-Tunnel-Skip-AntiPhishing-Page: true` was sent. |
+
+**Security and cleanup:** A token was pasted into an earlier troubleshooting conversation. Revoke any exposed token and generate a replacement. Use the dedicated read-only identity, rotate tokens when appropriate, and avoid leaving token secrets in PowerShell history, screenshots, chat, or repository files.
 
 ## 6. Microsoft Foundry setup
 
