@@ -1,0 +1,839 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "BookStack Reader",
+    "version": "1.1.0",
+    "description": "Read-only BookStack knowledge retrieval for Microsoft Foundry. Search first, retrieve authoritative full page content, and cite verified URLs returned by search results."
+  },
+  "servers": [
+    {
+      "url": "https://kv4kfw9f-6875.use.devtunnels.ms"
+    }
+  ],
+  "paths": {
+    "/api/books": {
+      "get": {
+        "operationId": "listBooks",
+        "summary": "List accessible books",
+        "description": "Discover accessible books and their IDs when the user asks about available books or when identifying the relevant book. This is not a full-text search; for general questions use searchBookStack first.",
+        "tags": [
+          "Books"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TunnelHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing BookStack API credentials."
+          },
+          "403": {
+            "description": "Authenticated user lacks required BookStack permissions."
+          },
+          "404": {
+            "description": "Requested BookStack resource not found."
+          }
+        }
+      }
+    },
+    "/api/books/{id}": {
+      "get": {
+        "operationId": "getBook",
+        "summary": "Get book structure and contents",
+        "description": "Retrieve book metadata and its chapter/page contents by a known book ID. Use to navigate a specific book or find page IDs within it; use getPage to read full page text.",
+        "tags": [
+          "Books"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID obtained from a BookStack search or listing result; never invent an ID."
+          },
+          {
+            "$ref": "#/components/parameters/TunnelHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "contents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "pages": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing BookStack API credentials."
+          },
+          "403": {
+            "description": "Authenticated user lacks required BookStack permissions."
+          },
+          "404": {
+            "description": "Requested BookStack resource not found."
+          }
+        }
+      }
+    },
+    "/api/search/book/{id}": {
+      "get": {
+        "operationId": "searchBook",
+        "summary": "Search within a known book",
+        "description": "Search the pages and chapters of one book when its ID is already known and the question is scoped to that book. For an unscoped question, use searchBookStack instead. Follow matching page results with getPage.",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID obtained from a BookStack search or listing result; never invent an ID."
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Short, distinctive BookStack search terms or phrase from the user question."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Results page number starting at 1."
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Number of results to return (1–100)."
+          },
+          {
+            "$ref": "#/components/parameters/TunnelHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "description": "One of page, chapter, book, bookshelf."
+                          },
+                          "url": {
+                            "type": "string",
+                            "description": "Verified URL to cite when the matching result is used as a source."
+                          },
+                          "book_id": {
+                            "type": "integer"
+                          },
+                          "chapter_id": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "book": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "chapter": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "preview_html": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "content": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing BookStack API credentials."
+          },
+          "403": {
+            "description": "Authenticated user lacks required BookStack permissions."
+          },
+          "404": {
+            "description": "Requested BookStack resource not found."
+          }
+        }
+      }
+    },
+    "/api/pages/{id}": {
+      "get": {
+        "operationId": "getPage",
+        "summary": "Read full authoritative page content",
+        "description": "Retrieve the complete content of a BookStack page by its ID. Use after searchBookStack, SearchBook, or searchChapter has found a relevant page. The html field is rendered page content; markdown may be present. Base answers on the page content, not search snippets. Preserve the verified URL from the search result for citation; this endpoint does not declare a page URL.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID obtained from a BookStack search or listing result; never invent an ID."
+          },
+          {
+            "$ref": "#/components/parameters/TunnelHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "book_id": {
+                      "type": "integer"
+                    },
+                    "chapter_id": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "html": {
+                      "type": "string",
+                      "description": "Full rendered HTML including resolved page includes. Primary content for grounded answers."
+                    },
+                    "markdown": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Markdown content if available."
+                    },
+                    "raw_html": {
+                      "type": "string",
+                      "description": "Unprocessed stored HTML; prefer html for reading."
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "draft": {
+                      "type": "boolean"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing BookStack API credentials."
+          },
+          "403": {
+            "description": "Authenticated user lacks required BookStack permissions."
+          },
+          "404": {
+            "description": "Requested BookStack resource not found."
+          }
+        }
+      }
+    },
+    "/api/chapters/{id}": {
+      "get": {
+        "operationId": "getChapter",
+        "summary": "Get chapter details and page list",
+        "description": "Retrieve chapter metadata and its page list using a known chapter ID. Use for navigation or chapter-scoped questions; fetch individual pages with getPage for their full text.",
+        "tags": [
+          "Chapters"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID obtained from a BookStack search or listing result; never invent an ID."
+          },
+          {
+            "$ref": "#/components/parameters/TunnelHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "book_id": {
+                      "type": "integer"
+                    },
+                    "book_slug": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "pages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "pages": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing BookStack API credentials."
+          },
+          "403": {
+            "description": "Authenticated user lacks required BookStack permissions."
+          },
+          "404": {
+            "description": "Requested BookStack resource not found."
+          }
+        }
+      }
+    },
+    "/api/search/chapter/{id}": {
+      "get": {
+        "operationId": "searchChapter",
+        "summary": "Search within a known chapter",
+        "description": "Search pages within a chapter when its ID is already known and the question is scoped to that chapter. For unscoped questions, use searchBookStack. Retrieve matching pages with getPage.",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID obtained from a BookStack search or listing result; never invent an ID."
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Short, distinctive BookStack search terms or phrase from the user question."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Results page number starting at 1."
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Number of results to return (1–100)."
+          },
+          {
+            "$ref": "#/components/parameters/TunnelHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "description": "One of page, chapter, book, bookshelf."
+                          },
+                          "url": {
+                            "type": "string",
+                            "description": "Verified URL to cite when the matching result is used as a source."
+                          },
+                          "book_id": {
+                            "type": "integer"
+                          },
+                          "chapter_id": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "book": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "chapter": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "preview_html": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "content": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing BookStack API credentials."
+          },
+          "403": {
+            "description": "Authenticated user lacks required BookStack permissions."
+          },
+          "404": {
+            "description": "Requested BookStack resource not found."
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "operationId": "searchBookStack",
+        "summary": "Search all accessible BookStack content",
+        "description": "PRIMARY DISCOVERY OPERATION for documentation questions. Search all accessible books, chapters, pages and shelves using distinctive terms from the question. Results include type, id, title, and verified URL, but only a preview of content. For matching pages, call getPage with the returned page ID before answering. If results are weak, retry with a shorter or alternative term. Use pagination when needed.",
+        "tags": [
+          "Search"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Short, distinctive BookStack search terms or phrase from the user question."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Results page number starting at 1."
+          },
+          {
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "Number of results to return (1–100)."
+          },
+          {
+            "$ref": "#/components/parameters/TunnelHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "description": "One of page, chapter, book, bookshelf."
+                          },
+                          "url": {
+                            "type": "string",
+                            "description": "Verified URL to cite when the matching result is used as a source."
+                          },
+                          "book_id": {
+                            "type": "integer"
+                          },
+                          "chapter_id": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "book": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "chapter": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "slug": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "preview_html": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "content": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing BookStack API credentials."
+          },
+          "403": {
+            "description": "Authenticated user lacks required BookStack permissions."
+          },
+          "404": {
+            "description": "Requested BookStack resource not found."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "TunnelHeader": {
+        "name": "X-Tunnel-Skip-AntiPhishing-Page",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "true"
+          ],
+          "default": "true"
+        },
+        "description": "Required for this VS Code Dev Tunnel. Supply the literal string true on every call. The OpenAPI default is descriptive and may not be automatically transmitted by Foundry."
+      }
+    },
+    "securitySchemes": {
+      "BookStackAuth": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header",
+        "description": "BookStack API token. Configure in Foundry connection as: Token TOKEN_ID:TOKEN_SECRET. Do not place secrets in this schema."
+      }
+    }
+  },
+  "security": [
+    {
+      "BookStackAuth": []
+    }
+  ]
+}
